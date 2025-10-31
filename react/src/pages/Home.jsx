@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { list as listAds } from '../api/ads';
+import { getSettings } from '../api/settings';
 import SearchBar from '../components/SearchBar';
 import AdCard from '../components/AdCard';
 
@@ -8,10 +9,11 @@ export default function Home() {
   const [category, setCategory] = useState('Все');
   const [data, setData] = useState({ results: [], count: 0, limit: 20, offset: 0 });
   const [loading, setLoading] = useState(true);
+  const [headerTitle, setHeaderTitle] = useState('Авитолог');
 
   const categories = useMemo(() => {
     const set = new Set(['Все']);
-    for (const item of data.results || []) {
+    for (const item of (data.results || [])) {
       if (item && item.category) set.add(item.category);
     }
     return Array.from(set);
@@ -33,10 +35,25 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort, category]);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const settings = await getSettings();
+        if (active && settings && typeof settings.header_title === 'string') {
+          setHeaderTitle(settings.header_title);
+        }
+      } catch (_) {
+        // ignore
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   return (
     <main data-easytag="id1-src/pages/Home.jsx" className="mx-auto max-w-6xl px-5 pb-16">
       <section data-easytag="id2-src/pages/Home.jsx" className="pt-10 text-center">
-        <h1 data-easytag="id3-src/pages/Home.jsx" className="text-3xl sm:text-4xl font-semibold tracking-tight">Авитолог</h1>
+        <h1 data-easytag="id3-src/pages/Home.jsx" className="text-3xl sm:text-4xl font-semibold tracking-tight">{headerTitle}</h1>
         <p data-easytag="id4-src/pages/Home.jsx" className="mt-2 text-neutral-600">Вставьте ссылку на объявление Авито — мы найдём и покажем детали.</p>
         <SearchBar />
       </section>

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { me } from '../api/auth';
+import { getSettings } from '../api/settings';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const [user, setUser] = useState(null);
   const [open, setOpen] = useState(null); // 'login' | 'register' | null
+  const [title, setTitle] = useState('Авитолог');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,6 +23,19 @@ export default function Header() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const settings = await getSettings();
+        if (settings && typeof settings.header_title === 'string') {
+          setTitle(settings.header_title);
+        }
+      } catch (_) {
+        // ignore, keep fallback
+      }
+    })();
+  }, []);
+
   const onLogout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -32,7 +47,7 @@ export default function Header() {
       <div data-easytag="id2-src/components/Header.jsx" className="mx-auto max-w-6xl px-5 py-4 flex items-center justify-between">
         <Link data-easytag="id3-src/components/Header.jsx" to="/" className="flex items-center gap-2 select-none">
           <div data-easytag="id4-src/components/Header.jsx" className="h-8 w-8 rounded-lg bg-black" aria-hidden="true" />
-          <span data-easytag="id5-src/components/Header.jsx" className="text-lg font-semibold tracking-tight">Авитолог</span>
+          <span data-easytag="id5-src/components/Header.jsx" className="text-lg font-semibold tracking-tight">{title}</span>
         </Link>
         <nav data-easytag="id6-src/components/Header.jsx" className="flex items-center gap-2">
           {user ? (
