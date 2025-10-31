@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ErrorBoundary from './ErrorBoundary';
 import './App.css';
-import { listAds, resolveAd, getAd } from './api/ads';
+import { listAds, resolveAd, getAd, getComments, postComment } from './api/ads';
 
 function useHashRoute() {
   const parse = () => {
@@ -69,7 +69,7 @@ function Toolbar({ sort, setSort, category, setCategory, onRefresh }) {
       </div>
       <div className="field">
         <label>Category</label>
-        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Смартфоны" />
+        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Смартфоны or Все" />
       </div>
       <button onClick={onRefresh}>Refresh</button>
     </div>
@@ -112,7 +112,10 @@ function HomePage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await listAds({ sort, category, limit, offset });
+      // Treat empty or "Все" as no category filter
+      const cat = (category || '').trim();
+      const effectiveCategory = cat && cat.toLowerCase() !== 'все' ? cat : '';
+      const res = await listAds({ sort, category: effectiveCategory, limit, offset });
       setData(res);
     } finally {
       setLoading(false);
@@ -162,6 +165,95 @@ function HomePage() {
   );
 }
 
+function Comments({ adId }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [error, setError] = useState('');
+  const [posting, setPosting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const list = await getComments(adId);
+      setItems(list);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adId]);
+
+  const isLoggedIn = !!localStorage.getItem('token');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    const payload = (text || '').trim();
+    if (!payload) {
+      setError('Enter your comment');
+      return;
+    }
+    setPosting(true);
+    try {
+      await postComment(adId, payload);
+      setText('');
+      await load();
+    } catch (err) {
+      setError('Failed to post comment. Make sure you are logged in.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <div className="comments">
+      <h3>Comments</h3>
+      {loading ? (
+        <div className="loading">Loading…</div>
+      ) : (
+        <div className="comments-list">
+          {items.length === 0 ? (
+            <div className="muted">No comments yet</div>
+          ) : (
+            items.map((c) => (
+              <div key={c.id} className="comment">
+                <div className="comment-header">
+                  <strong>{c.username}</strong>
+                  <span className="time">{new Date(c.created_at).toLocaleString()}</span>
+                </div>
+                <div className="comment-text">{c.text}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      <div className="comment-form">
+        {isLoggedIn ? (
+          <form onSubmit={submit}>
+            <textarea
+              placeholder="Write a comment…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={2000}
+            />
+            <div className="row">
+              <button type="submit" disabled={posting}>{posting ? 'Posting…' : 'Post comment'}</button>
+              {error && <span className="error" style={{ marginLeft: 8 }}>{error}</span>}
+            </div>
+          </form>
+        ) : (
+          <div className="muted">Login to post a comment.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DetailPage({ id }) {
   const [ad, setAd] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -203,6 +295,7 @@ function DetailPage({ id }) {
           </div>
         </div>
       </div>
+      <Comments adId={id} />
     </div>
   );
 }

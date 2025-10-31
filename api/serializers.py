@@ -48,3 +48,16 @@ class AdsQuerySerializer(serializers.Serializer):
 
 class ResolveSerializer(serializers.Serializer):
     url = serializers.URLField()
+
+
+# Comments serializers
+class CommentSerializer(serializers.Serializer):
+    id = serializers.CharField(read_only=True)
+    ad_id = serializers.CharField()
+    username = serializers.CharField()
+    text = serializers.CharField(min_length=1, max_length=2000)
+    created_at = serializers.DateTimeField()
+
+
+class CreateCommentSerializer(serializers.Serializer):
+    text = serializers.CharField(min_length=1, max_length=2000)

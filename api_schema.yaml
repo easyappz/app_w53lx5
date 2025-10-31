@@ -26,7 +26,8 @@ paths:
           required: false
           schema:
             type: string
-          description: Filter by category (exact match, case-insensitive)
+          description: |
+            Filter by category (exact match, case-insensitive). Empty or "Все" means no filter.
         - name: limit
           in: query
           required: false
@@ -122,6 +123,73 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/ads/{id}/comments:
+    get:
+      summary: List comments for ad
+      description: |
+        Returns comments for the given ad id, sorted by created_at ascending. Data is stored in process memory and is reset on server restart (this is expected and matches the requirements).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Comments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '404':
+          description: Ad not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create comment for ad
+      description: |
+        Create a comment for the ad. Requires JWT in Authorization header (Bearer <token>). Data is kept in memory and resets on restart.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComment'
+      responses:
+        '201':
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Ad not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Ad:
@@ -174,6 +242,32 @@ components:
         url:
           type: string
           format: uri
+    Comment:
+      type: object
+      required: [id, ad_id, username, text, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ad_id:
+          type: string
+        username:
+          type: string
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        created_at:
+          type: string
+          format: date-time
+    CreateComment:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
     Error:
       type: object
       properties:

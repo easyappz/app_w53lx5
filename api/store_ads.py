@@ -54,9 +54,14 @@ class AdsStore:
     ) -> Tuple[List[Dict], int]:
         with self._lock:
             ads: List[Ad] = list(self._ads_by_id.values())
-            if category:
-                ads = [a for a in ads if (a.category or "").lower() == category.lower()]
 
+            # Category filter: treat empty/"Все"/"All" as no filter
+            if category is not None:
+                cat_norm = category.strip().lower()
+                if cat_norm and cat_norm not in ("все", "all"):
+                    ads = [a for a in ads if (a.category or "").strip().lower() == cat_norm]
+
+            # Popularity strictly equals view_count for now
             if sort == "date":
                 # Newest first, None at the end
                 ads.sort(
@@ -128,6 +133,14 @@ class AdsStore:
                 return None
             ad.view_count += 1
             ad.updated_at = self._now()
+            return self.to_public(ad)
+
+    def get_public(self, ad_id: str) -> Optional[Dict]:
+        """Return ad public dict by id without changing counters."""
+        with self._lock:
+            ad = self._ads_by_id.get(ad_id)
+            if not ad:
+                return None
             return self.to_public(ad)
 
 

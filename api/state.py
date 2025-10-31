@@ -1,6 +1,7 @@
 import threading
+import uuid
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 
 class InMemoryState:
@@ -70,15 +71,10 @@ class InMemoryState:
             self.ads[ad_id] = ad
             return ad
 
-    # Comments (skeleton for future use)
-    def next_comment_id(self) -> str:
-        with self._comments_lock:
-            self._comment_counter += 1
-            return str(self._comment_counter)
-
+    # Comments
     def create_comment(self, data: Dict) -> Dict:
         with self._comments_lock:
-            comment_id = self.next_comment_id()
+            comment_id = str(uuid.uuid4())
             comment = {
                 "id": comment_id,
                 "ad_id": data.get("ad_id"),
@@ -88,6 +84,12 @@ class InMemoryState:
             }
             self.comments[comment_id] = comment
             return comment
+
+    def list_comments_by_ad(self, ad_id: str) -> List[Dict]:
+        with self._comments_lock:
+            items = [c for c in self.comments.values() if c.get("ad_id") == ad_id]
+            items.sort(key=lambda c: c.get("created_at") or "")  # ASC by created_at
+            return list(items)
 
 
 # Global state instance and helper functions used by views
@@ -104,3 +106,11 @@ def get_user(username: str) -> Optional[Dict]:
 
 def user_exists(username: str) -> bool:
     return STATE.user_exists(username)
+
+
+def create_comment(ad_id: str, username: str, text: str) -> Dict:
+    return STATE.create_comment({"ad_id": ad_id, "username": username, "text": text})
+
+
+def list_comments(ad_id: str) -> List[Dict]:
+    return STATE.list_comments_by_ad(ad_id)

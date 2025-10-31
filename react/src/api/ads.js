@@ -9,7 +9,7 @@ async function ensureSchemaLoaded() {
     const resp = await fetch('/api_schema.yaml', { cache: 'no-cache' });
     schemaText = await resp.text();
     // Basic verification that required paths exist
-    const required = ['/api/ads:', '/api/ads/resolve:', '/api/ads/{id}:'];
+    const required = ['/api/ads:', '/api/ads/resolve:', '/api/ads/{id}:', '/api/ads/{id}/comments:'];
     for (const p of required) {
       if (!schemaText.includes(p)) {
         console.warn('api_schema.yaml is missing expected path:', p);
@@ -29,7 +29,8 @@ async function ensureSchemaLoaded() {
 export async function listAds({ sort = 'popular', category = '', limit = 20, offset = 0 } = {}) {
   await ensureSchemaLoaded();
   const params = { sort, limit, offset };
-  if (category && category.trim()) params.category = category.trim();
+  const cat = (category || '').trim();
+  if (cat && cat.toLowerCase() !== 'все') params.category = cat;
   const res = await instance.get('/api/ads', { params });
   return res.data;
 }
@@ -43,5 +44,17 @@ export async function resolveAd(url) {
 export async function getAd(id) {
   await ensureSchemaLoaded();
   const res = await instance.get(`/api/ads/${id}`);
+  return res.data;
+}
+
+export async function getComments(adId) {
+  await ensureSchemaLoaded();
+  const res = await instance.get(`/api/ads/${adId}/comments`);
+  return res.data;
+}
+
+export async function postComment(adId, text) {
+  await ensureSchemaLoaded();
+  const res = await instance.post(`/api/ads/${adId}/comments`, { text });
   return res.data;
 }

@@ -2,6 +2,7 @@ from django.urls import path
 from .views import HelloView
 from .views_auth import RegisterView, LoginView, MeView
 from .views_ads import AdsListView, ResolveAdView, AdDetailView
+from .views_comments import CommentListCreateView
 
 urlpatterns = [
     path("hello/", HelloView.as_view(), name="hello"),
@@ -13,4 +14,7 @@ urlpatterns = [
     path("ads", AdsListView.as_view(), name="ads-list"),
     path("ads/resolve", ResolveAdView.as_view(), name="ads-resolve"),
     path("ads/<str:ad_id>", AdDetailView.as_view(), name="ads-detail"),
+
+    # Comments (nested under ad)
+    path("ads/<str:ad_id>/comments", CommentListCreateView.as_view(), name="ad-comments"),
 ]
