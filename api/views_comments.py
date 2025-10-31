@@ -3,15 +3,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
-from .serializers import CommentSerializer, CreateCommentSerializer, ErrorSerializer
-from .state import create_comment, list_comments
-from .store_ads import ads_store
+from .serializers import CommentModelSerializer, CreateCommentSerializer, ErrorSerializer
+from .models import Ad, Comment
 
 
 class CommentListCreateView(APIView):
     """
     List comments for an ad (GET) and create a comment (POST).
-    Data is stored purely in in-process memory and is cleared on server restart.
+    Data is stored in SQLite DB.
     """
 
     def get_permissions(self):
@@ -24,22 +23,24 @@ class CommentListCreateView(APIView):
             OpenApiParameter(name="ad_id", type=str, location=OpenApiParameter.PATH, required=True),
         ],
         responses={
-            200: CommentSerializer(many=True),
+            200: CommentModelSerializer(many=True),
             404: ErrorSerializer,
         },
         tags=["comments"],
         summary="List comments for an ad",
         description=(
             "Return comments for given ad id, sorted by created_at ascending.\n"
-            "All data is kept in process memory and will be lost after server restart."
+            "Data is persisted in SQLite."
         ),
     )
     def get(self, request, ad_id: str):
-        # 404 if ad does not exist
-        if not ads_store.get_public(ad_id):
+        ad = Ad.objects.filter(id=ad_id).first()
+        if not ad:
             return Response({"detail": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
-        items = list_comments(ad_id)
-        return Response(items, status=status.HTTP_200_OK)
+
+        items = Comment.objects.filter(ad_id=ad.id).select_related("user").order_by("created_at")
+        data = CommentModelSerializer(items, many=True).data
+        return Response(data, status=status.HTTP_200_OK)
 
     @extend_schema(
         parameters=[
@@ -47,7 +48,7 @@ class CommentListCreateView(APIView):
         ],
         request=CreateCommentSerializer,
         responses={
-            201: CommentSerializer,
+            201: CommentModelSerializer,
             400: ErrorSerializer,
             401: ErrorSerializer,
             404: ErrorSerializer,
@@ -58,22 +59,22 @@ class CommentListCreateView(APIView):
             "Create a comment for the ad. JWT token must be provided in Authorization header (Bearer <token>).\n"
             "Comment id is UUIDv4, username is taken from token, created_at is current time in UTC.\n"
             "Text length 1..2000.\n"
-            "All data is kept in process memory and will be lost after server restart."
+            "Data is persisted in SQLite."
         ),
     )
     def post(self, request, ad_id: str):
-        # 404 if ad does not exist
-        if not ads_store.get_public(ad_id):
+        ad = Ad.objects.filter(id=ad_id).first()
+        if not ad:
             return Response({"detail": "Ad not found"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = CreateCommentSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        username = getattr(request.user, "username", None)
-        if not username:
+        user = request.user
+        if not getattr(user, "is_authenticated", False):
             return Response({"detail": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
 
         text = serializer.validated_data["text"]
-        comment = create_comment(ad_id=ad_id, username=username, text=text)
-        return Response(comment, status=status.HTTP_201_CREATED)
+        comment = Comment.objects.create(ad=ad, user=user, text=text)
+        return Response(CommentModelSerializer(comment).data, status=status.HTTP_201_CREATED)

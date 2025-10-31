@@ -3,6 +3,7 @@ from .views import HelloView
 from .views_auth import RegisterView, LoginView, MeView
 from .views_ads import AdsListView, ResolveAdView, AdDetailView
 from .views_comments import CommentListCreateView
+from .views_settings import SettingsView
 
 urlpatterns = [
     path("hello/", HelloView.as_view(), name="hello"),
@@ -17,4 +18,7 @@ urlpatterns = [
 
     # Comments (nested under ad)
     path("ads/<str:ad_id>/comments", CommentListCreateView.as_view(), name="ad-comments"),
+
+    # Settings
+    path("settings", SettingsView.as_view(), name="settings"),
 ]

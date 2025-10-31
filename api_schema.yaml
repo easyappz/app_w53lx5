@@ -1,17 +1,36 @@
 openapi: 3.0.3
 info:
   title: Easyappz Ads API
-  version: 1.1.0
+  version: 1.2.0
   description: |
-    In-memory Ads domain. Only HTTP, no DB. JWT via Authorization header if needed.
+    Ads, comments and users are stored in SQLite (via Django/DRF). Only HTTP, no sockets. JWT is passed in Authorization header as Bearer <token>.
 servers:
   - url: /
 paths:
+  /api/settings:
+    get:
+      summary: Get site settings
+      description: Returns site-wide settings managed in Django admin. Currently only header_title.
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  header_title:
+                    type: string
+                required: [header_title]
+              examples:
+                default:
+                  value:
+                    header_title: "Авитолог"
   /api/ads:
     get:
       summary: List ads
       description: |
-        Return list of ads with pagination. Sorting by popularity (view_count desc) or by published date (nulls last).
+        Return list of ads with pagination. Sorting by popularity (view_count desc) or by published date (nulls last). Data is persisted in SQLite.
       parameters:
         - name: sort
           in: query
@@ -70,7 +89,7 @@ paths:
     post:
       summary: Resolve ad by Avito URL
       description: |
-        If ad with given source URL exists, return it (200). Otherwise fetch minimal data from Avito, create in-memory ad and return it (201).
+        If ad with given source URL exists, return it (200). Otherwise fetch minimal data from Avito, create DB record and return it (201).
       requestBody:
         required: true
         content:
@@ -127,7 +146,7 @@ paths:
     get:
       summary: List comments for ad
       description: |
-        Returns comments for the given ad id, sorted by created_at ascending. Data is stored in process memory and is reset on server restart (this is expected and matches the requirements).
+        Returns comments for the given ad id, sorted by created_at ascending. Data is stored in SQLite DB.
       parameters:
         - name: id
           in: path
@@ -152,7 +171,7 @@ paths:
     post:
       summary: Create comment for ad
       description: |
-        Create a comment for the ad. Requires JWT in Authorization header (Bearer <token>). Data is kept in memory and resets on restart.
+        Create a comment for the ad. Requires JWT in Authorization header (Bearer <token>). Data is persisted in SQLite.
       parameters:
         - name: id
           in: path
@@ -181,9 +200,9 @@ paths:
         '401':
           description: Unauthorized
           content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
         '404':
           description: Ad not found
           content:
@@ -193,7 +212,7 @@ paths:
   /api/auth/register/:
     post:
       summary: Register a new user
-      description: Registers a user in-memory and returns JWT token.
+      description: Registers a user in SQLite DB and returns JWT token.
       requestBody:
         required: true
         content:
@@ -216,7 +235,7 @@ paths:
   /api/auth/login/:
     post:
       summary: Login user
-      description: Validates credentials and returns JWT token.
+      description: Validates credentials against SQLite DB and returns JWT token.
       requestBody:
         required: true
         content:

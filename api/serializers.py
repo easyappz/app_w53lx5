@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .models import Ad, Comment
+
 
 class MessageSerializer(serializers.Serializer):
     message = serializers.CharField(max_length=200)
@@ -37,6 +39,22 @@ class AdSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField()
 
 
+class AdModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ad
+        fields = (
+            "id",
+            "source_url",
+            "title",
+            "image_url",
+            "published_at",
+            "category",
+            "view_count",
+            "created_at",
+            "updated_at",
+        )
+
+
 class AdsQuerySerializer(serializers.Serializer):
     SORT_CHOICES = ("popular", "date")
 
@@ -57,6 +75,15 @@ class CommentSerializer(serializers.Serializer):
     username = serializers.CharField()
     text = serializers.CharField(min_length=1, max_length=2000)
     created_at = serializers.DateTimeField()
+
+
+class CommentModelSerializer(serializers.ModelSerializer):
+    ad_id = serializers.UUIDField(source="ad_id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ("id", "ad_id", "username", "text", "created_at")
 
 
 class CreateCommentSerializer(serializers.Serializer):

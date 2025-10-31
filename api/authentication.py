@@ -1,22 +1,16 @@
-from dataclasses import dataclass
 from typing import Optional, Tuple
 
+from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
 from .jwt_utils import verify_token
 
 
-@dataclass
-class SimpleUser:
-    username: str
-    is_authenticated: bool = True
-
-
 class JWTAuthentication(BaseAuthentication):
     keyword = "Bearer"
 
-    def authenticate(self, request) -> Optional[Tuple[SimpleUser, str]]:
+    def authenticate(self, request) -> Optional[Tuple[object, str]]:
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return None
@@ -35,5 +29,10 @@ class JWTAuthentication(BaseAuthentication):
         if not username:
             raise AuthenticationFailed("Invalid token payload.")
 
-        user = SimpleUser(username=username)
+        User = get_user_model()
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist as exc:
+            raise AuthenticationFailed("User not found") from exc
+
         return user, token

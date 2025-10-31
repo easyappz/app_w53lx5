@@ -1,4 +1,4 @@
-import hashlib
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,7 +10,6 @@ from .serializers import (
     MeSerializer,
     ErrorSerializer,
 )
-from .state import create_user, get_user, user_exists
 from .jwt_utils import issue_token
 
 
@@ -26,7 +25,7 @@ class RegisterView(APIView):
         tags=["auth"],
         summary="Register a new user",
         description=(
-            "Registers a user in in-memory storage. Returns a JWT token in response body."
+            "Registers a user in database (SQLite). Returns a JWT token in response body."
         ),
     )
     def post(self, request):
@@ -37,15 +36,11 @@ class RegisterView(APIView):
         username = serializer.validated_data["username"].strip()
         password = serializer.validated_data["password"]
 
-        if user_exists(username):
+        User = get_user_model()
+        if User.objects.filter(username=username).exists():
             return Response({"detail": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
-        try:
-            create_user(username=username, password_hash=password_hash)
-        except ValueError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
+        User.objects.create_user(username=username, password=password)
         token = issue_token(username)
         return Response({"username": username, "token": token}, status=status.HTTP_201_CREATED)
 
@@ -62,7 +57,7 @@ class LoginView(APIView):
         tags=["auth"],
         summary="Login user",
         description=(
-            "Validates credentials against in-memory storage and returns a JWT token in response body."
+            "Validates credentials against database and returns a JWT token in response body."
         ),
     )
     def post(self, request):
@@ -73,13 +68,16 @@ class LoginView(APIView):
         username = serializer.validated_data["username"].strip()
         password = serializer.validated_data["password"]
 
-        user = get_user(username)
-        if not user:
-            return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
-
-        password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
-        if user.get("password_hash") != password_hash:
-            return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+        user = authenticate(username=username, password=password)
+        if user is None:
+            # Fallback check in case auth backend isn't configured (shouldn't be necessary)
+            User = get_user_model()
+            try:
+                user_obj = User.objects.get(username=username)
+            except User.DoesNotExist:
+                return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            if not user_obj.check_password(password):
+                return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
 
         token = issue_token(username)
         return Response({"username": username, "token": token}, status=status.HTTP_200_OK)
