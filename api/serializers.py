@@ -22,3 +22,29 @@ class MeSerializer(serializers.Serializer):
 
 class ErrorSerializer(serializers.Serializer):
     detail = serializers.CharField()
+
+
+# Ads domain serializers
+class AdSerializer(serializers.Serializer):
+    id = serializers.CharField(read_only=True)
+    source_url = serializers.URLField()
+    title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    image_url = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    published_at = serializers.DateTimeField(allow_null=True, required=False)
+    category = serializers.CharField()
+    view_count = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+
+
+class AdsQuerySerializer(serializers.Serializer):
+    SORT_CHOICES = ("popular", "date")
+
+    sort = serializers.ChoiceField(choices=SORT_CHOICES, required=False, default="popular")
+    category = serializers.CharField(required=False, allow_blank=True)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20)
+    offset = serializers.IntegerField(required=False, min_value=0, default=0)
+
+
+class ResolveSerializer(serializers.Serializer):
+    url = serializers.URLField()

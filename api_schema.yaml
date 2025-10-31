@@ -1,129 +1,181 @@
 openapi: 3.0.3
 info:
-  title: Avitolog API
-  version: 0.1.0
+  title: Easyappz Ads API
+  version: 1.0.0
   description: |
-    In-memory backend skeleton for "Avitolog". All endpoints use HTTP with JWT in Authorization header.
+    In-memory Ads domain. Only HTTP, no DB. JWT via Authorization header if needed.
 servers:
   - url: /
 paths:
-  /api/auth/register/:
-    post:
-      tags: [auth]
-      summary: Register a new user
-      description: Registers a user in in-memory storage and returns JWT token in response body.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterRequest'
-      responses:
-        '201':
-          description: Registered successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Validation error / username exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/auth/login/:
-    post:
-      tags: [auth]
-      summary: Login user
-      description: Validates credentials against in-memory storage and returns JWT token in response body.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Logged in
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Invalid credentials / validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/auth/me/:
+  /api/ads:
     get:
-      tags: [auth]
-      summary: Get current user
-      description: Returns the username of authenticated user.
-      security:
-        - bearerAuth: []
+      summary: List ads
+      description: |
+        Return list of ads with pagination. Sorting by popularity (view_count desc) or by published date (nulls last).
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [popular, date]
+            default: popular
+          description: Sort by popularity or date
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by category (exact match, case-insensitive)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         '200':
-          description: Current user data
+          description: List of ads
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MeResponse'
-        '401':
-          description: Unauthorized
+                $ref: '#/components/schemas/AdsListResponse'
+              examples:
+                sample:
+                  value:
+                    count: 1
+                    limit: 20
+                    offset: 0
+                    results:
+                      - id: "f0c7d7a9-0e9d-4a3c-8f34-2a23d1b3b9b0"
+                        source_url: "https://www.avito.ru/some_ad"
+                        title: "iPhone 12 128GB"
+                        image_url: "https://example.com/image.jpg"
+                        published_at: "2023-11-15T10:00:00Z"
+                        category: "Смартфоны"
+                        view_count: 12
+                        created_at: "2025-01-01T12:00:00Z"
+                        updated_at: "2025-01-01T12:00:00Z"
+  /api/ads/resolve:
+    post:
+      summary: Resolve ad by Avito URL
+      description: |
+        If ad with given source URL exists, return it (200). Otherwise fetch minimal data from Avito, create in-memory ad and return it (201).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveRequest'
+            examples:
+              sample:
+                value:
+                  url: "https://www.avito.ru/moskva/telefony/iphone_12_128gb_123456789"
+      responses:
+        '200':
+          description: Existing ad
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Ad'
+        '201':
+          description: Created ad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ad'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/ads/{id}:
+    get:
+      summary: Get ad by id (increments views)
+      description: Returns ad by id and increments its view_count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ad'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
   schemas:
-    RegisterRequest:
+    Ad:
       type: object
-      required: [username, password]
+      required: [id, source_url, category, view_count, created_at, updated_at]
       properties:
-        username:
+        id:
           type: string
-          minLength: 3
-          maxLength: 64
-        password:
+          format: uuid
+        source_url:
           type: string
-          minLength: 6
-          maxLength: 128
-    LoginRequest:
+          format: uri
+        title:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        category:
+          type: string
+        view_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AdsListResponse:
       type: object
-      required: [username, password]
       properties:
-        username:
-          type: string
-          minLength: 3
-          maxLength: 64
-        password:
-          type: string
-          minLength: 6
-          maxLength: 128
-    AuthResponse:
+        count:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ad'
+    ResolveRequest:
       type: object
-      required: [username, token]
+      required: [url]
       properties:
-        username:
+        url:
           type: string
-        token:
-          type: string
-          description: JWT token. Send as Authorization: Bearer <token>
-    MeResponse:
+          format: uri
+    Error:
       type: object
-      required: [username]
-      properties:
-        username:
-          type: string
-    ErrorResponse:
-      type: object
-      required: [detail]
       properties:
         detail:
           type: string
