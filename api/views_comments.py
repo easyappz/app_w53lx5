@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,6 +9,7 @@ from .serializers import CommentModelSerializer, CreateCommentSerializer, ErrorS
 from .models import Ad, Comment
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CommentListCreateView(APIView):
     """
     List comments for an ad (GET) and create a comment (POST).

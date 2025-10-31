@@ -2,6 +2,8 @@ from typing import Any, Dict
 
 from django.db.models import F, Case, When, IntegerField
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -49,7 +51,7 @@ class AdsListView(APIView):
 
         qs = Ad.objects.all()
 
-        # Category filter: empty/"Все"/"All" means no filter
+        # Category filter: empty/\"Все\"/\"All\" means no filter
         if category is not None:
             cat_norm = (category or "").strip().lower()
             if cat_norm and cat_norm not in ("все", "all"):
@@ -78,6 +80,7 @@ class AdsListView(APIView):
         })
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ResolveAdView(APIView):
     """Resolve by Avito URL: return existing or create new ad in DB."""
 
