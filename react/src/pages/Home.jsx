@@ -9,6 +9,7 @@ export default function Home() {
   const [category, setCategory] = useState('Все');
   const [data, setData] = useState({ results: [], count: 0, limit: 20, offset: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [headerTitle, setHeaderTitle] = useState('Авитолог');
 
   const categories = useMemo(() => {
@@ -21,10 +22,14 @@ export default function Home() {
 
   const load = async () => {
     setLoading(true);
+    setError('');
     try {
       const effectiveCategory = category === 'Все' ? '' : category;
       const res = await listAds({ sort, category: effectiveCategory, limit: 20, offset: 0 });
       setData(res);
+    } catch (_) {
+      setError('Не удалось загрузить объявления');
+      setData({ results: [], count: 0, limit: 20, offset: 0 });
     } finally {
       setLoading(false);
     }
@@ -80,8 +85,12 @@ export default function Home() {
         <div data-easytag="id16-src/pages/Home.jsx" className="mt-6">
           {loading ? (
             <div data-easytag="id17-src/pages/Home.jsx" className="text-center text-neutral-600">Загрузка…</div>
+          ) : error ? (
+            <div data-easytag="id18-src/pages/Home.jsx" className="text-center text-red-600">{error}</div>
+          ) : (data.results || []).length === 0 ? (
+            <div data-easytag="id19-src/pages/Home.jsx" className="text-center text-neutral-500">Объявлений пока нет</div>
           ) : (
-            <div data-easytag="id18-src/pages/Home.jsx" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div data-easytag="id20-src/pages/Home.jsx" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {(data.results || []).map((ad) => (
                 <AdCard key={ad.id} ad={ad} />
               ))}
